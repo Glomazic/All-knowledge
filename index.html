@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>All the Knowledge of the World</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Cinzel:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --gold: #C9A84C;
+    --deep: #0a0a0f;
+  }
+
+  html, body {
+    width: 100%; min-height: 100%;
+    background: var(--deep);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow-x: hidden;
+  }
+
+  /* ── BACKGROUND COLLAGE ── */
+  #bg-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .bg-tile {
+    position: absolute;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 3s ease;
+    border-radius: 2px;
+  }
+
+  .bg-tile.visible { opacity: 1; }
+
+  /* slow drift */
+  @keyframes drift {
+    0%   { transform: scale(1.05) translate(0,0); }
+    33%  { transform: scale(1.08) translate(-1%,0.5%); }
+    66%  { transform: scale(1.06) translate(0.5%,-0.5%); }
+    100% { transform: scale(1.05) translate(0,0); }
+  }
+
+  .bg-tile { animation: drift 20s ease-in-out infinite; }
+
+  /* dark veil so text is never unreadable */
+  #veil {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.72) 100%);
+    pointer-events: none;
+  }
+
+  /* ── AUDIO BAR ── */
+  #audio-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 10px 24px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(201,168,76,0.25);
+  }
+
+  #audio-bar .song-label {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    opacity: 0.85;
+    text-transform: uppercase;
+    min-width: 220px;
+    text-align: center;
+  }
+
+  .eq-bars {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 18px;
+  }
+
+  .eq-bar {
+    width: 3px;
+    background: var(--gold);
+    border-radius: 1px;
+    animation: eq 0.6s ease-in-out infinite alternate;
+  }
+
+  .eq-bar:nth-child(1) { animation-duration: 0.55s; }
+  .eq-bar:nth-child(2) { animation-duration: 0.7s; animation-delay: 0.1s; }
+  .eq-bar:nth-child(3) { animation-duration: 0.45s; animation-delay: 0.2s; }
+  .eq-bar:nth-child(4) { animation-duration: 0.8s; animation-delay: 0.05s; }
+  .eq-bar:nth-child(5) { animation-duration: 0.5s; animation-delay: 0.15s; }
+
+  @keyframes eq {
+    from { height: 3px; }
+    to   { height: 18px; }
+  }
+
+  /* ── SCROLL CONTAINER ── */
+  #scroll-wrap {
+    position: relative;
+    z-index: 10;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 120px 48px 120px;
+  }
+
+  /* ── TITLE ── */
+  #main-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(22px, 4vw, 38px);
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 80px;
+    line-height: 1.3;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    margin-bottom: 64px;
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+
+  .section.revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .section p {
+    font-size: clamp(16px, 2.2vw, 21px);
+    line-height: 1.85;
+    font-weight: 300;
+    margin-bottom: 0.6em;
+  }
+
+  .section p:last-child { margin-bottom: 0; }
+
+  /* paradox stanza — centered, open */
+  .paradox {
+    text-align: center;
+    font-style: italic;
+    padding: 28px 0;
+    border-top: 1px solid rgba(201,168,76,0.2);
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+  }
+
+  .paradox p {
+    font-size: clamp(15px, 2vw, 19px);
+    line-height: 2.1;
+    letter-spacing: 0.04em;
+  }
+
+  /* closing lines */
+  .coda {
+    text-align: center;
+    margin-top: 80px;
+  }
+
+  .coda p {
+    font-size: clamp(15px, 2vw, 18px);
+    line-height: 2;
+    font-style: italic;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── DYNAMIC TEXT COLOR ── */
+  /* Each character in a <span class="ch"> gets color set by JS based on bg brightness */
+  .ch {
+    display: inline;
+    transition: color 0.8s ease, text-shadow 0.8s ease;
+  }
+
+  /* ── GOLD RULE ── */
+  .rule {
+    width: 60px;
+    height: 1px;
+    background: var(--gold);
+    margin: 40px auto;
+    opacity: 0.5;
+  }
+
+  /* ── SCROLL HINT ── */
+  #scroll-hint {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: rgba(201,168,76,0.5);
+    text-transform: uppercase;
+    animation: fade-pulse 2.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes fade-pulse {
+    0%,100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
+  }
+
+</style>
+</head>
+<body>
+
+<div id="bg-canvas"></div>
+<div id="veil"></div>
+<div id="scroll-hint">↓ scroll ↓</div>
+
+<div id="scroll-wrap">
+
+  <h1 id="main-title"></h1>
+
+  <div class="section" id="s1">
+    <p>History is divided into two sections: before and after Christ. Everything before was a search for Him, everything after an adjustment to Him.</p>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="section" id="s2">
+    <p>The theandric reality is liturgical and the people who assemble that reality are the Church, and the culmination of life in this reality is at Divine Liturgy.</p>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="section paradox" id="s3">
+    <p>Life in Christ is a paradox.</p>
+    <p>You are and you aren't.</p>
+    <p>What you do matters and doesn't matter.</p>
+    <p>You matter and you don't matter.</p>
+    <p>There is a life after death and there is no life after death.</p>
+    <p>But there is definitely life according to this theandric reality and death and evil outside of it.</p>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="section" id="s4">
+    <p>Only the Orthodox Church is the institutional repository of all knowledge and truth.</p>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="section" id="s5">
+    <p>All of these designations are not covering a spectrum or general in any sense. They have a very specific meaning that cannot be learned — it, like all knowledge, needs to be formed, and it is only formed in a person/as a person.</p>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="section" id="s6">
+    <p>Not all formed people are liturgical.</p>
+    <p>There are many more people that are not formed at all, but are like animals.</p>
+    <p>These are the people who mimic the sounds other people make, no different from AI, and there indeed is no difference between them other than that the people are trapped in this state. They have forgotten to speak. For them language is for complaining and judging. No longer people. The living dead.</p>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="section" id="s7">
+    <p>They do not use language for personal formation. The only thing language can be used for.</p>
+    <p>You can use language to form into an accuser of the world that is the Devil, but you are forming into a phantom: bits and pieces of reality reordered temporarily by the free will granted to some creatures in creation, of which people are the lowest and the most exalted.</p>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="section coda" id="s8">
+    <p>Idol worship is a relationship of reward and punishment.</p>
+    <p>All of creation belongs to God. You belong to who you belong.</p>
+    <p>Nothing else is knowledge.</p>
+  </div>
+
+</div>
+
+<div id="audio-bar">
+  <div class="eq-bars">
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+  </div>
+  <div class="song-label" id="song-label">♪ Now Playing</div>
+  <div class="eq-bars">
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+  </div>
+</div>
+
+<script>
+// ── BACKGROUND IMAGES (public domain / Wikimedia) ──
+const BG_IMAGES = [
+  // Byzantine / sacred art
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Christ_Pantocrator_Deesis_mosaic_Hagia_Sophia.jpg/1280px-Christ_Pantocrator_Deesis_mosaic_Hagia_Sophia.jpg', label: 'Hagia Sophia Deesis' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Campomarino_-_mosaico_Pantocrator.jpg/1280px-Campomarino_-_mosaico_Pantocrator.jpg', label: 'Pantocrator Mosaic' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Andrei_Rublev_-_The_Trinity_-_Google_Art_Project.jpg/1024px-Andrei_Rublev_-_The_Trinity_-_Google_Art_Project.jpg', label: 'Rublev — The Trinity' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/The_Last_Supper_-_Leonardo_Da_Vinci_-_High_Resolution_32x16.jpg/1280px-The_Last_Supper_-_Leonardo_Da_Vinci_-_High_Resolution_32x16.jpg', label: 'Leonardo — The Last Supper' },
+  // World history
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/800px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'Leonardo — Mona Lisa' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Hamlet.jpg/800px-Hamlet.jpg', label: 'Hamlet' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Feaux_de_la_Saint-Jean-Baptiste-2.jpg/1280px-Feaux_de_la_Saint-Jean-Baptiste-2.jpg', label: 'St. John's Eve Fire' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Campomarino_-_mosaico_Pantocrator.jpg/1280px-Campomarino_-_mosaico_Pantocrator.jpg', label: 'Byzantine Mosaic' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Michelangelo_-_Creation_of_Adam_%28cropped%29.jpg/1280px-Michelangelo_-_Creation_of_Adam_%28cropped%29.jpg', label: 'Michelangelo — Creation of Adam' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/The_School_of_Athens_by_Raffaello_Sanzio_da_Urbino.jpg/1280px-The_School_of_Athens_by_Raffaello_Sanzio_da_Urbino.jpg', label: 'Raphael — School of Athens' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/The_Scream.jpg/800px-The_Scream.jpg', label: 'Munch — The Scream' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Good_Food_Display_-_NCI_Visuals_Online.jpg/1280px-Good_Food_Display_-_NCI_Visuals_Online.jpg', label: '' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg', label: 'Van Gogh — Starry Night' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Big_Bear_Valley%2C_San_Bernardino_Mountains%2C_California_%28cropped%29.jpg/1280px-Big_Bear_Valley%2C_San_Bernardino_Mountains%2C_California_%28cropped%29.jpg', label: '' },
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Eugène_Delacroix_-_La_liberté_guidant_le_peuple.jpg/1280px-Eugène_Delacroix_-_La_liberté_guidant_le_peuple.jpg', label: 'Delacroix — Liberty' },
+];
+
+// ── SONGS (display only — no streaming without license) ──
+const SONGS = [
+  'Billy Joe Shaver — Live Forever',
+  'Arvo Pärt — Spiegel im Spiegel',
+  'Johnny Cash — Hurt',
+  'Nick Cave — Into My Arms',
+  'Bob Dylan — Every Grain of Sand',
+  'Townes Van Zandt — Waiting Around to Die',
+  'Leonard Cohen — Anthem',
+  'Billy Joe Shaver — The Git Go',
+  'Górecki — Symphony No. 3',
+  'Billy Joe Shaver — Old Five and Dimers Like Me',
+];
+
+// ── BUILD BACKGROUND TILES ──
+const canvas = document.getElementById('bg-canvas');
+const TILE_COUNT = 6;
+const tiles = [];
+
+function randomPos() {
+  return { left: Math.random() * 100, top: Math.random() * 100 };
+}
+
+for (let i = 0; i < TILE_COUNT; i++) {
+  const el = document.createElement('div');
+  el.className = 'bg-tile';
+  const size = 45 + Math.random() * 45; // 45–90vw
+  el.style.width = size + 'vw';
+  el.style.height = size * (0.6 + Math.random() * 0.6) + 'vh';
+  const pos = randomPos();
+  el.style.left = pos.left + '%';
+  el.style.top  = pos.top  + '%';
+  el.style.animationDuration = (15 + Math.random() * 20) + 's';
+  el.style.animationDelay   = -(Math.random() * 20) + 's';
+  canvas.appendChild(el);
+  tiles.push(el);
+}
+
+let imgIdx = 0;
+function rotateTile(tile) {
+  const img = BG_IMAGES[imgIdx % BG_IMAGES.length];
+  imgIdx++;
+  tile.style.opacity = '0';
+  setTimeout(() => {
+    tile.style.backgroundImage = `url('${img.url}')`;
+    const pos = randomPos();
+    tile.style.left = pos.left + '%';
+    tile.style.top  = pos.top  + '%';
+    const size = 45 + Math.random() * 45;
+    tile.style.width  = size + 'vw';
+    tile.style.height = size * (0.6 + Math.random() * 0.6) + 'vh';
+    tile.style.opacity = '1';
+  }, 400);
+}
+
+// stagger initial loads
+tiles.forEach((t, i) => {
+  const img = BG_IMAGES[i % BG_IMAGES.length];
+  t.style.backgroundImage = `url('${img.url}')`;
+  setTimeout(() => t.classList.add('visible'), i * 800);
+});
+imgIdx = tiles.length;
+
+// rotate each tile every 8–14s
+tiles.forEach((t, i) => {
+  const delay = 8000 + i * 1500 + Math.random() * 3000;
+  setInterval(() => rotateTile(t), delay);
+});
+
+// ── TITLE character wrap ──
+const titleEl = document.getElementById('main-title');
+const TITLE = 'All the Knowledge of the World';
+titleEl.innerHTML = TITLE.split('').map(ch =>
+  ch === ' ' ? ' ' : `<span class="ch">${ch}</span>`
+).join('');
+
+// ── WRAP ALL TEXT IN .ch SPANS ──
+function wrapText(el) {
+  el.querySelectorAll('p').forEach(p => {
+    const html = p.innerHTML;
+    // preserve existing spans/entities
+    p.innerHTML = html.replace(/([^\s<>\/&;])/g, '<span class="ch">$1</span>');
+  });
+}
+
+document.querySelectorAll('.section').forEach(wrapText);
+
+// ── DYNAMIC COLOR based on background brightness ──
+// We sample the CSS background at a point using an offscreen canvas trick.
+// Since images are cross-origin, we use a heuristic: track which tile is dominant
+// at a given element's position, derive approximate brightness from image metadata.
+// Simpler & reliable: animate between dark-bg=light-text and light-bg=dark-text
+// based on a scrolling brightness model.
+
+// We'll compute per-character color by sampling the pixel under it via
+// a separate offscreen canvas that we paint the current bg into.
+// For cross-origin images we use an estimation approach.
+
+let bgBrightness = 0.2; // 0=dark, 1=light — updated over time
+
+// Simulate brightness oscillation tied to image transitions
+// Each image has a rough brightness tag
+const IMG_BRIGHTNESS = [0.3,0.4,0.35,0.3,0.5,0.35,0.6,0.4,0.5,0.55,0.45,0.7,0.55,0.7,0.4];
+let brightnessIdx = 0;
+
+function nextBrightness() {
+  brightnessIdx = (brightnessIdx + 1) % IMG_BRIGHTNESS.length;
+  const target = IMG_BRIGHTNESS[brightnessIdx];
+  const duration = 3000;
+  const start = bgBrightness;
+  const t0 = performance.now();
+  function step(now) {
+    const p = Math.min((now - t0) / duration, 1);
+    bgBrightness = start + (target - start) * p;
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+setInterval(nextBrightness, 6000);
+
+// Color the spans based on their vertical position + brightness
+function colorSpans() {
+  const spans = document.querySelectorAll('.ch');
+  const viewH = window.innerHeight;
+  const scrollY = window.scrollY;
+
+  spans.forEach(span => {
+    const rect = span.getBoundingClientRect();
+    const cy = (rect.top + rect.bottom) / 2;
+    const normalY = cy / viewH; // 0=top, 1=bottom
+
+    // local brightness: blend global + slight vertical variation
+    const localBright = Math.min(1, Math.max(0, bgBrightness + (normalY - 0.5) * 0.15 + (Math.random() - 0.5) * 0.04));
+
+    let color, shadow;
+    if (localBright > 0.55) {
+      // light background → dark text with gold tint
+      const darkness = Math.round(20 + (1 - localBright) * 60);
+      color = `rgb(${darkness},${darkness - 5},${Math.round(darkness * 0.7)})`;
+      shadow = '0 0 8px rgba(255,255,240,0.6)';
+    } else {
+      // dark background → light/gold text
+      const lightness = Math.round(200 + localBright * 55);
+      const goldBlend = Math.round(lightness * 0.78);
+      color = `rgb(${lightness},${goldBlend},${Math.round(lightness * 0.55)})`;
+      shadow = `0 0 12px rgba(201,168,76,${0.3 + localBright * 0.2})`;
+    }
+
+    span.style.color = color;
+    span.style.textShadow = shadow;
+  });
+}
+
+// Run on animation frame, not every pixel scroll (performance)
+let colorTick = 0;
+function loop() {
+  colorTick++;
+  if (colorTick % 4 === 0) colorSpans(); // ~15fps color update
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ── SCROLL REVEAL ──
+const sections = document.querySelectorAll('.section');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('revealed');
+  });
+}, { threshold: 0.15 });
+
+sections.forEach(s => observer.observe(s));
+
+// Title reveal
+setTimeout(() => {
+  titleEl.style.transition = 'opacity 1.8s ease';
+  titleEl.style.opacity = '1';
+}, 400);
+titleEl.style.opacity = '0';
+
+// ── SONG ROTATION ──
+let songIdx = 0;
+const songLabel = document.getElementById('song-label');
+
+function rotateSong() {
+  songLabel.style.opacity = '0';
+  setTimeout(() => {
+    songIdx = (songIdx + 1) % SONGS.length;
+    songLabel.textContent = '♪  ' + SONGS[songIdx];
+    songLabel.style.transition = 'opacity 1s ease';
+    songLabel.style.opacity = '1';
+  }, 600);
+}
+
+songLabel.textContent = '♪  ' + SONGS[0];
+setInterval(rotateSong, 9000);
+
+// ── SCROLL HINT ──
+const hint = document.getElementById('scroll-hint');
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 80) hint.style.opacity = '0';
+}, { passive: true });
+</script>
+</body>
+</html>
